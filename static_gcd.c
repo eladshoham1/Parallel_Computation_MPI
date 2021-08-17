@@ -4,45 +4,53 @@
 #include <string.h>
 #include <time.h>
 
-#include "gcdFunctions.h"
+#include "gcdNumbers.h"
 
-enum ranks { ROOT, N = 5 };
+enum ranks { ROOT };
 
 int main(int argc, char *argv[])
 {
-    int myRank, numProcs, numOfCouples, jobsDone = 0;
-    GcdNumbers *allGcdNumbers, workGcdNumbers[N];
+    int myRank, numProcs, numOfCouples, workNumOfCouples;
+    GcdNumbers *allGcdNumbers, *workGcdNumbers;
     
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
-    MPI_Datatype gcdNumbersType = gcdNumbersMPIType();
+    MPI_Datatype MPI_GCD_NUMBERS = gcdNumbersMPIType();
 
     if (myRank == ROOT)
     {
-        scanf("%d", &numOfCouples);
-        allGcdNumbers = (GcdNumbers*)malloc(numOfCouples * sizeof(GcdNumbers));
+        allGcdNumbers = readCouples(&numOfCouples);
         if (!allGcdNumbers)
+        {
+            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
             exit(EXIT_FAILURE);
+        }
 
-        readCouples(allGcdNumbers, numOfCouples);
+        workNumOfCouples = numOfCouples / numProcs;
     }
 
-    MPI_Bcast(&numOfCouples,1,MPI_INT,ROOT,MPI_COMM_WORLD);
-
-    while (jobsDone < numOfCouples)
+    MPI_Bcast(&workNumOfCouples, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+    workGcdNumbers = (GcdNumbers*)malloc(workNumOfCouples * sizeof(GcdNumbers));
+    if (!workGcdNumbers)
     {
-        MPI_Scatter(allGcdNumbers + jobsDone, N, gcdNumbersType, workGcdNumbers, N, gcdNumbersType, ROOT, MPI_COMM_WORLD);
-        jobsDone += N * numProcs;
-        calculateGcdArr(workGcdNumbers, N);
-        MPI_Gather(workGcdNumbers, N, gcdNumbersType, allGcdNumbers, N, gcdNumbersType, ROOT, MPI_COMM_WORLD);
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
+
+    MPI_Scatter(allGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, workGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
+    calculateGcdArr(workGcdNumbers, workNumOfCouples);
+    MPI_Gather(workGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, allGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
 
     if (myRank == ROOT)
     {
+        if (numOfCouples % numProcs > 0)
+            calculateGcdArr(allGcdNumbers + workNumOfCouples * numProcs, numOfCouples % numProcs);
+
         printAllGcdNumbers(allGcdNumbers, numOfCouples);
         free(allGcdNumbers);
     }
+    free(workGcdNumbers);
 
     MPI_Finalize();
     return EXIT_SUCCESS;

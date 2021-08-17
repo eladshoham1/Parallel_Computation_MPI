@@ -1,13 +1,34 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "gcdFunctions.h"
+#include "gcdNumbers.h"
 
-void readCouples(GcdNumbers *gcdNumbers, int numOfCouples)
+GcdNumbers* readCouples(int *numOfCouples)
 {
+    GcdNumbers *gcdNumbers;
     int i;
-    
-    for (i = 0; i < numOfCouples; i++)
-        scanf("%d %d", &gcdNumbers[i].num1, &gcdNumbers[i].num2);
+    char buffer[100], ch;
+
+    fgets(buffer, 100, stdin);
+    *numOfCouples = atoi(buffer);
+    gcdNumbers = (GcdNumbers*)malloc(*numOfCouples * sizeof(GcdNumbers));
+    if (!gcdNumbers)
+        return NULL;
+
+    for (i = 0; i < *numOfCouples; i++)
+    {
+        fgets(buffer, 100, stdin);
+        sscanf(buffer, "%d %d%c", &gcdNumbers[i].num1, &gcdNumbers[i].num2, &ch);
+        
+        if (gcdNumbers[i].num1 == 0 || gcdNumbers[i].num2 == 0 || ch != '\n')
+        {
+            printf("‫‪illegal‬‬ ‫‪input‬‬ ‫‪at‬‬ ‫‪line‬‬ %d\n", i + 2);
+            return NULL;
+        }
+    }
+
+    return gcdNumbers;
 }
 
 void gcd(GcdNumbers *gcdNumbers)
