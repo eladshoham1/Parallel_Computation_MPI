@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "array": "c",
+        "bitset": "c",
+        "initializer_list": "c",
+        "utility": "c",
+        "functional": "c",
+        "tuple": "c",
+        "type_traits": "c",
+        "gcdfunctions.h": "c"
+    }
+}
