@@ -2,118 +2,87 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
-/*enum ranks{ROOT};
-enum tags{WORK, STOP};
+#include "gcdNumbers.h"
 
-int* readNumbers(int size)
+enum tags { WORK, STOP };
+
+void workerProcess(MPI_Datatype MPI_GCD_NUMBERS)
 {
-    int *arr, i;
-
-    arr = (int*)malloc(size * sizeof(int));
-    if (!arr)
-        return NULL;
-
-    printf("Enter %d numbers: ", size);
-    for (i = 0; i < size; i++)
-        scanf("%d", &arr[i]);
-
-    return arr;
-}
-
-int findPrime(int *arr, int size)
-{
-    int i, j, p, count = 0;
-
-    for (i = 0; i < size; i++)
-    {
-        p = 1;
-        for (j = 2; p != 0 && j < arr[i]; j++)
-        {
-            if (arr[i] % j == 0)
-                p = 0;
-        }
-        if (p == 1)
-            count++;
-    }
-
-    return count;
-}
-
-void workerProcess()
-{
-    int arr[N], countPrime,tag;
+    GcdNumbers *gcdNumbers;
+    int chunk, tag;
     MPI_Status status;
+      
     do
     {
-        MPI_Recv(arr,N,MPI_INT,ROOT,MPI_ANY_TAG,MPI_COMM_WORLD,&status);
-        tag = status.MPI_TAG;
-        countPrime = findPrime(arr,N);
-        MPI_Send(&countPrime,1,MPI_INT,ROOT,tag,MPI_COMM_WORLD);
+        MPI_Recv(&chunk, 1, MPI_INT, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        gcdNumbers = (GcdNumbers*)doMalloc(chunk * sizeof(GcdNumbers));
 
+        MPI_Recv(gcdNumbers, chunk, MPI_GCD_NUMBERS, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        tag = status.MPI_TAG;
+        calculateGcdArr(gcdNumbers, chunk);
+        MPI_Send(gcdNumbers, chunk, MPI_GCD_NUMBERS, ROOT, tag, MPI_COMM_WORLD);
+        //printAllGcdNumbers(gcdNumbers, chunk);
+        free(gcdNumbers);
     } while (tag != STOP);
 }
 
-void masterProcess(int num_procs)
+void masterProcess(int numProcs, int chunk, MPI_Datatype MPI_GCD_NUMBERS)
 {
+    GcdNumbers *allGcdNumbers, *workGcdNumbers;
+    int numOfCouples, workerId, jobsSent = 0, tag;
     MPI_Status status;
-    int *arr , arrSize, worker_id, jobs_sent = 0, tag;
-    int localCount = 0, globalCount = 0;
 
-    printf("Enter number of numbers: ");
-    scanf("%d", &arrSize);
-    arr = readNumbers(arrSize);
-    if (!arr)
-        exit(1);
-    double t = MPI_Wtime();
-    //start workers
-    for(worker_id=1;worker_id < num_procs;worker_id++)
+    allGcdNumbers = readCouples(&numOfCouples);
+    if (!allGcdNumbers)
     {
-        MPI_Send(arr+jobs_sent,N,MPI_INT,worker_id,WORK,MPI_COMM_WORLD);
-        jobs_sent += N;
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
-    //recv and send more work
-    printf("arrsize = %d\n",arrsize);
-    for(;jobs_sent < arrsize;jobs_sent+=N)
+    workGcdNumbers = (GcdNumbers*)doMalloc(chunk * sizeof(GcdNumbers));
+
+    for (workerId = 1; workerId < numProcs; workerId++)
     {
-        if(arrsize - jobs_sent <= (num_procs-1)*N)
-            tag = STOP;
+        MPI_Send(&chunk, 1, MPI_INT, workerId, WORK, MPI_COMM_WORLD);
+        MPI_Send(allGcdNumbers + jobsSent, chunk, MPI_GCD_NUMBERS, workerId, WORK, MPI_COMM_WORLD);
+        jobsSent += chunk;
+    }
+
+    for (; jobsSent < numOfCouples; jobsSent += chunk)
+    {
+        MPI_Recv(workGcdNumbers, chunk, MPI_GCD_NUMBERS, MPI_ANY_SOURCE, WORK, MPI_COMM_WORLD, &status);
+        printAllGcdNumbers(workGcdNumbers, chunk);
+
+        if (numOfCouples - jobsSent <= (numProcs - 1))
+            MPI_Send(allGcdNumbers + jobsSent, numOfCouples - jobsSent, MPI_GCD_NUMBERS, status.MPI_SOURCE, STOP, MPI_COMM_WORLD);
         else
-            tag = WORK;
-        MPI_Recv(&localCount,1,MPI_INT,MPI_ANY_SOURCE,WORK,MPI_COMM_WORLD,&status);
-        MPI_Send(arr+jobs_sent,N,MPI_INT,status.MPI_SOURCE,tag,MPI_COMM_WORLD);
-        globalCount += localCount;
+            MPI_Send(allGcdNumbers + jobsSent, chunk, MPI_GCD_NUMBERS, status.MPI_SOURCE, WORK, MPI_COMM_WORLD);
     }
 
-    //terminate
-    for(worker_id=1;worker_id < num_procs;worker_id++)
+    for (workerId = 1; workerId < numProcs; workerId++)
     {
-        MPI_Recv(&localCount,1,MPI_INT,MPI_ANY_SOURCE,STOP,MPI_COMM_WORLD,&status);
-        globalCount += localCount;
+        MPI_Recv(workGcdNumbers, chunk, MPI_GCD_NUMBERS, MPI_ANY_SOURCE, STOP, MPI_COMM_WORLD, &status);
+        printAllGcdNumbers(workGcdNumbers, chunk);
     }
-    printf("Parallel prime count is %d, time %lf\n",globalCount,MPI_Wtime()-t);
-    t = MPI_Wtime();
-    globalCount = findPrime(arr,arrsize);
-    printf("Sequential prime count is %d, time %lf\n",globalCount,MPI_Wtime()-t);
-    free(arr);
-}*/
+
+    free(allGcdNumbers);
+}
 
 int main(int argc, char *argv[])
 {
-    /*int myRank, numProcs, chunk;
+    int myRank, numProcs, chunk = argc >= 2 ? atoi(argv[1]) : 2;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     MPI_Comm_size(MPI_COMM_WORLD, &numProcs); 
+    MPI_Datatype MPI_GCD_NUMBERS = gcdNumbersMPIType();
 
-    chunk = argc > 1 ? atoi(argv[1]) : 1;
     if (myRank == ROOT)
-        masterProcess(numProcs, chunk);
+        masterProcess(numProcs, chunk, MPI_GCD_NUMBERS);
     else
-        workerProcess();
-
-    MPI_Finalize();*/
+        workerProcess(MPI_GCD_NUMBERS);
+   
+    MPI_Finalize();
     return 0;
 }

@@ -8,22 +8,21 @@ GcdNumbers* readCouples(int *numOfCouples)
 {
     GcdNumbers *gcdNumbers;
     int i;
-    char buffer[100], ch;
+    char buffer[MAX_SIZE], ch;
 
-    fgets(buffer, 100, stdin);
+    fgets(buffer, MAX_SIZE, stdin);
     *numOfCouples = atoi(buffer);
-    gcdNumbers = (GcdNumbers*)malloc(*numOfCouples * sizeof(GcdNumbers));
-    if (!gcdNumbers)
-        return NULL;
+    gcdNumbers = (GcdNumbers*)doMalloc(*numOfCouples * sizeof(GcdNumbers));
 
     for (i = 0; i < *numOfCouples; i++)
     {
-        fgets(buffer, 100, stdin);
+        fgets(buffer, MAX_SIZE, stdin);
         sscanf(buffer, "%d %d%c", &gcdNumbers[i].num1, &gcdNumbers[i].num2, &ch);
         
         if (gcdNumbers[i].num1 == 0 || gcdNumbers[i].num2 == 0 || ch != '\n')
         {
             printf("‫‪illegal‬‬ ‫‪input‬‬ ‫‪at‬‬ ‫‪line‬‬ %d\n", i + 2);
+            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
             return NULL;
         }
     }
@@ -74,4 +73,16 @@ MPI_Datatype gcdNumbersMPIType()
     MPI_Type_commit(&gcdNumbersType);
 
     return gcdNumbersType;
+}
+
+void* doMalloc(unsigned int nbytes) 
+{
+    void *p = malloc(nbytes);
+
+    if (p == NULL) { 
+        fprintf(stderr, "malloc failed\n"); 
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    }
+
+    return p;
 }

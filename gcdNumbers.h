@@ -3,6 +3,9 @@
 
 #include <mpi.h>
 
+enum str { MAX_SIZE = 100 };
+enum ranks { ROOT };
+
 typedef struct GcdNumbers
 {
     int num1, num2, gcd;
@@ -13,5 +16,6 @@ void gcd(GcdNumbers *gcdNumbers);
 void calculateGcdArr(GcdNumbers *allGcdNumbers, int numOfCouples);
 void printAllGcdNumbers(GcdNumbers *allGcdNumbers, int numOfCouples);
 MPI_Datatype gcdNumbersMPIType();
+void* doMalloc(unsigned int nbytes);
 
 #endif
