@@ -6,8 +6,9 @@
 
 int main(int argc, char *argv[])
 {
-    int myRank, numProcs, numOfCouples, workNumOfCouples;
     GcdNumbers *allGcdNumbers, *workGcdNumbers;
+    int myRank, numProcs, numOfCouples, workNumOfCouples;
+    double time;
     
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
@@ -17,7 +18,14 @@ int main(int argc, char *argv[])
     if (myRank == ROOT)
     {
         allGcdNumbers = readCouples(&numOfCouples);
+        if (!allGcdNumbers)
+        {
+            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+            exit(EXIT_FAILURE);
+        }
+
         workNumOfCouples = numOfCouples / numProcs;
+        time = MPI_Wtime();
     }
 
     MPI_Bcast(&workNumOfCouples, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
@@ -32,6 +40,7 @@ int main(int argc, char *argv[])
         if (numOfCouples % numProcs > 0)
             calculateGcdArr(allGcdNumbers + workNumOfCouples * numProcs, numOfCouples % numProcs);
 
+        printf("Run time: %lf\n", MPI_Wtime() - time);
         printAllGcdNumbers(allGcdNumbers, numOfCouples);
         free(allGcdNumbers);
     }

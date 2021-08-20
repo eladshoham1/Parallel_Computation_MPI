@@ -22,7 +22,7 @@ GcdNumbers* readCouples(int *numOfCouples)
         if (gcdNumbers[i].num1 == 0 || gcdNumbers[i].num2 == 0 || ch != '\n')
         {
             printf("‫‪illegal‬‬ ‫‪input‬‬ ‫‪at‬‬ ‫‪line‬‬ %d\n", i + 2);
-            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+            free(gcdNumbers);
             return NULL;
         }
     }
@@ -82,6 +82,7 @@ void* doMalloc(unsigned int nbytes)
     if (p == NULL) { 
         fprintf(stderr, "malloc failed\n"); 
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
     return p;
