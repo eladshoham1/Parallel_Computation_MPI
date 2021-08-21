@@ -4,10 +4,12 @@
 
 #include "gcdNumbers.h"
 
+enum chunk { N = 1 };
+
 int main(int argc, char *argv[])
 {
-    GcdNumbers *allGcdNumbers, *workGcdNumbers;
-    int myRank, numProcs, numOfCouples, workNumOfCouples;
+    GcdNumbers *allGcdNumbers, workGcdNumbers[N];
+    int myRank, numProcs, numOfCouples, jobsDone = 0;
     double time;
     
     MPI_Init(&argc, &argv);
@@ -24,27 +26,25 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
-        workNumOfCouples = numOfCouples / numProcs;
         time = MPI_Wtime();
     }
 
-    MPI_Bcast(&workNumOfCouples, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
-    workGcdNumbers = (GcdNumbers*)doMalloc(workNumOfCouples * sizeof(GcdNumbers));
+    MPI_Bcast(&numOfCouples, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 
-    MPI_Scatter(allGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, workGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
-    calculateGcdArr(workGcdNumbers, workNumOfCouples);
-    MPI_Gather(workGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, allGcdNumbers, workNumOfCouples, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
+    while (jobsDone < numOfCouples)
+    {
+        MPI_Scatter(allGcdNumbers + jobsDone, N, MPI_GCD_NUMBERS, workGcdNumbers, N, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
+        jobsDone += N * numProcs;
+        calculateGcdArr(workGcdNumbers, N);
+        MPI_Gather(workGcdNumbers, N, MPI_GCD_NUMBERS, allGcdNumbers, N, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
+    }
 
     if (myRank == ROOT)
     {
-        if (numOfCouples % numProcs > 0)
-            calculateGcdArr(allGcdNumbers + workNumOfCouples * numProcs, numOfCouples % numProcs);
-
         printf("Run time: %lf\n", MPI_Wtime() - time);
         printAllGcdNumbers(allGcdNumbers, numOfCouples);
         free(allGcdNumbers);
     }
-    free(workGcdNumbers);
 
     MPI_Finalize();
     return EXIT_SUCCESS;

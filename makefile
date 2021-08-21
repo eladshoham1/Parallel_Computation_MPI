@@ -9,4 +9,4 @@ static:
 	mpiexec -n 4 ./static_gcd < input.txt
 
 dynamic:
-	mpiexec -n 4 ./dynamic_gcd < input.txt 14
+	mpiexec -n 4 ./dynamic_gcd < input.txt 10
