@@ -16,26 +16,21 @@ void workerProcess(MPI_Datatype MPI_GCD_NUMBERS)
     do
     {
         MPI_Recv(&chunk, 1, MPI_INT, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        if (chunk == 0)
-            break;
-
         gcdNumbers = (GcdNumbers*)doMalloc(chunk * sizeof(GcdNumbers));
 
         MPI_Recv(gcdNumbers, chunk, MPI_GCD_NUMBERS, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         tag = status.MPI_TAG;
         calculateGcdArr(gcdNumbers, chunk);
-        //printAllGcdNumbers(gcdNumbers, chunk);
         MPI_Send(gcdNumbers, chunk, MPI_GCD_NUMBERS, ROOT, tag, MPI_COMM_WORLD);
 
         free(gcdNumbers);
     } while (tag != STOP);
-    
 }
 
 void masterProcess(int numProcs, int chunk, MPI_Datatype MPI_GCD_NUMBERS)
 {
     GcdNumbers *allGcdNumbers;
-    int numOfCouples, workerId, jobSent = 0, jobDone = 0, tag;
+    int numOfCouples, workerId, tag, remainder = 0;
     double time;
     MPI_Status status;
 
@@ -47,38 +42,30 @@ void masterProcess(int numProcs, int chunk, MPI_Datatype MPI_GCD_NUMBERS)
     }
 
     time = MPI_Wtime();
-
-    for (workerId = 1; workerId < numProcs; workerId++)
+    
+    for (int jobSent = 0; jobSent < numOfCouples; jobSent += (numProcs - 1) * chunk)
     {
-        MPI_Send(&chunk, 1, MPI_INT, workerId, WORK, MPI_COMM_WORLD);
-        MPI_Send(allGcdNumbers + jobDone, chunk, MPI_GCD_NUMBERS, workerId, WORK, MPI_COMM_WORLD);
-        jobDone += chunk;
-    }
-    int totalWork = 0;
-    for (workerId = 1, jobSent = 0; jobSent + jobDone < numOfCouples || workerId < numProcs; workerId++, jobSent += chunk)
-    {
-        workerId = (workerId % numProcs) != 0 ? workerId % numProcs : 1;
-        MPI_Recv(allGcdNumbers + jobSent, chunk, MPI_GCD_NUMBERS, workerId, WORK, MPI_COMM_WORLD, &status);
-
-        if (jobDone + jobSent + (numProcs - 1) * chunk >= numOfCouples)
+        if (numOfCouples <= jobSent + (numProcs - 1) * chunk)
         {
             tag = STOP;
-        } 
-        else
-        {
-            tag = WORK;
-            totalWork = jobDone + jobSent + chunk;
+            chunk = (numOfCouples - jobSent) / (numProcs - 1);
+            remainder = (numOfCouples - jobSent) % (numProcs - 1);
         }
+        else
+            tag = WORK;
 
-        MPI_Send(&chunk, 1, MPI_INT, workerId, tag, MPI_COMM_WORLD);
-        MPI_Send(allGcdNumbers + jobDone + jobSent, chunk, MPI_GCD_NUMBERS, workerId, tag, MPI_COMM_WORLD);
+        for (workerId = 1; workerId < numProcs; workerId++)
+        {
+            MPI_Send(&chunk, 1, MPI_INT, workerId, tag, MPI_COMM_WORLD);
+            MPI_Send(allGcdNumbers + jobSent + (workerId - 1) * chunk, chunk, MPI_GCD_NUMBERS, workerId, tag, MPI_COMM_WORLD);
+        }
+        
+        for (workerId = 1; workerId < numProcs; workerId++)
+            MPI_Recv(allGcdNumbers + jobSent + (workerId - 1) * chunk, chunk, MPI_GCD_NUMBERS, workerId, tag, MPI_COMM_WORLD, &status);
     }
 
-    for (workerId = 1; workerId < numProcs; workerId++)
-    {
-        MPI_Recv(allGcdNumbers + totalWork, chunk, MPI_GCD_NUMBERS, workerId, STOP, MPI_COMM_WORLD, &status);
-        totalWork += chunk;
-    }
+    if (remainder != 0)
+        calculateGcdArr(allGcdNumbers + (numOfCouples - remainder), remainder);
 
     printf("Run time: %lf\n", MPI_Wtime() - time);
     printAllGcdNumbers(allGcdNumbers, numOfCouples);

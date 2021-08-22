@@ -4,9 +4,3 @@ build:
 
 clean:
 	rm -rf *.o static_gcd dynamic_gcd
-
-static:
-	mpiexec -n 4 ./static_gcd < input.txt
-
-dynamic:
-	mpiexec -n 4 ./dynamic_gcd < input.txt 8
