@@ -43,7 +43,7 @@ void masterProcess(int numProcs, int chunk, MPI_Datatype MPI_GCD_NUMBERS)
 
     time = MPI_Wtime();
     
-    for (int jobSent = 0; jobSent < numOfCouples; jobSent += (numProcs - 1) * chunk)
+    for (int jobSent = 0; tag != STOP && jobSent < numOfCouples; jobSent += (numProcs - 1) * chunk)
     {
         if (numOfCouples <= jobSent + (numProcs - 1) * chunk)
         {
