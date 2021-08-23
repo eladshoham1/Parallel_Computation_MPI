@@ -81,6 +81,12 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &numProcs); 
     MPI_Datatype MPI_GCD_NUMBERS = gcdNumbersMPIType();
 
+    if (numProcs < 2)
+    {
+        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+        exit(EXIT_FAILURE);
+    }
+
     if (myRank == ROOT)
         masterProcess(numProcs, chunk, MPI_GCD_NUMBERS);
     else
