@@ -4,7 +4,7 @@
 
 #include "gcdNumbers.h"
 
-enum size { N = 2 };
+enum size { N = 16 };
 
 int main(int argc, char *argv[])
 {
@@ -15,7 +15,8 @@ int main(int argc, char *argv[])
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
-    MPI_Datatype MPI_GCD_NUMBERS = gcdNumbersMPIType();
+    MPI_Datatype gcdNumbersType;
+    createGcdNumbersType(&gcdNumbersType);
 
     if (myRank == ROOT)
     {
@@ -33,9 +34,9 @@ int main(int argc, char *argv[])
 
     while (jobsDone + N * numProcs <= numOfCouples)
     {
-        MPI_Scatter(allGcdNumbers + jobsDone, N, MPI_GCD_NUMBERS, workGcdNumbers, N, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
+        MPI_Scatter(allGcdNumbers + jobsDone, N, gcdNumbersType, workGcdNumbers, N, gcdNumbersType, ROOT, MPI_COMM_WORLD);
         calculateGcdArr(workGcdNumbers, N);
-        MPI_Gather(workGcdNumbers, N, MPI_GCD_NUMBERS, allGcdNumbers + jobsDone, N, MPI_GCD_NUMBERS, ROOT, MPI_COMM_WORLD);
+        MPI_Gather(workGcdNumbers, N, gcdNumbersType, allGcdNumbers + jobsDone, N, gcdNumbersType, ROOT, MPI_COMM_WORLD);
         jobsDone += N * numProcs;
     }
 

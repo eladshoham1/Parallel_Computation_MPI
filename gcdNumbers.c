@@ -58,21 +58,10 @@ void printAllGcdNumbers(GcdNumbers *allGcdNumbers, int numOfCouples)
         printf("%d %d\t gcd: %d\n", allGcdNumbers[i].num1, allGcdNumbers[i].num2, allGcdNumbers[i].gcd);
 }
 
-MPI_Datatype gcdNumbersMPIType()
+void createGcdNumbersType(MPI_Datatype* dataType)
 {
-    GcdNumbers gcdNumbers;
-    int blocklen[3] = { 1, 1, 1 };
-    MPI_Aint disp[3];
-    MPI_Datatype oldTypes[3] = { MPI_INT, MPI_INT, MPI_INT };
-    MPI_Datatype gcdNumbersType;
-
-    disp[0] = (char*)&gcdNumbers.num1 - (char*)&gcdNumbers;
-    disp[1] = (char*)&gcdNumbers.num2 - (char*)&gcdNumbers;
-    disp[2] = (char*)&gcdNumbers.gcd - (char*)&gcdNumbers;
-    MPI_Type_create_struct(3, blocklen, disp, oldTypes, &gcdNumbersType);
-    MPI_Type_commit(&gcdNumbersType);
-
-    return gcdNumbersType;
+    MPI_Type_contiguous(3, MPI_INT, dataType);
+    MPI_Type_commit(dataType);
 }
 
 void* doMalloc(unsigned int nbytes) 

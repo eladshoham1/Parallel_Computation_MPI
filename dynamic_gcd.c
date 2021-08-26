@@ -7,7 +7,7 @@
 
 enum tags { WORK, STOP };
 
-void workerProcess(MPI_Datatype MPI_GCD_NUMBERS)
+void workerProcess(MPI_Datatype gcdNumbersType)
 {
     GcdNumbers *gcdNumbers;
     int chunk, tag;
@@ -18,16 +18,16 @@ void workerProcess(MPI_Datatype MPI_GCD_NUMBERS)
         MPI_Recv(&chunk, 1, MPI_INT, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         gcdNumbers = (GcdNumbers*)doMalloc(chunk * sizeof(GcdNumbers));
 
-        MPI_Recv(gcdNumbers, chunk, MPI_GCD_NUMBERS, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Recv(gcdNumbers, chunk, gcdNumbersType, ROOT, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         tag = status.MPI_TAG;
         calculateGcdArr(gcdNumbers, chunk);
-        MPI_Send(gcdNumbers, chunk, MPI_GCD_NUMBERS, ROOT, tag, MPI_COMM_WORLD);
+        MPI_Send(gcdNumbers, chunk, gcdNumbersType, ROOT, tag, MPI_COMM_WORLD);
 
         free(gcdNumbers);
     } while (tag != STOP);
 }
 
-void masterProcess(int numProcs, int chunk, MPI_Datatype MPI_GCD_NUMBERS)
+void masterProcess(int numProcs, int chunk, MPI_Datatype gcdNumbersType)
 {
     GcdNumbers *allGcdNumbers;
     int numOfCouples, workerId, tag, remainder = 0;
@@ -57,11 +57,11 @@ void masterProcess(int numProcs, int chunk, MPI_Datatype MPI_GCD_NUMBERS)
         for (workerId = 1; workerId < numProcs; workerId++)
         {
             MPI_Send(&chunk, 1, MPI_INT, workerId, tag, MPI_COMM_WORLD);
-            MPI_Send(allGcdNumbers + jobSent + (workerId - 1) * chunk, chunk, MPI_GCD_NUMBERS, workerId, tag, MPI_COMM_WORLD);
+            MPI_Send(allGcdNumbers + jobSent + (workerId - 1) * chunk, chunk, gcdNumbersType, workerId, tag, MPI_COMM_WORLD);
         }
         
         for (workerId = 1; workerId < numProcs; workerId++)
-            MPI_Recv(allGcdNumbers + jobSent + (workerId - 1) * chunk, chunk, MPI_GCD_NUMBERS, workerId, tag, MPI_COMM_WORLD, &status);
+            MPI_Recv(allGcdNumbers + jobSent + (workerId - 1) * chunk, chunk, gcdNumbersType, workerId, tag, MPI_COMM_WORLD, &status);
     }
 
     if (remainder != 0)
@@ -79,7 +79,8 @@ int main(int argc, char *argv[])
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     MPI_Comm_size(MPI_COMM_WORLD, &numProcs); 
-    MPI_Datatype MPI_GCD_NUMBERS = gcdNumbersMPIType();
+    MPI_Datatype gcdNumbersType;
+    createGcdNumbersType(&gcdNumbersType);
 
     if (numProcs < 2)
     {
@@ -88,9 +89,9 @@ int main(int argc, char *argv[])
     }
 
     if (myRank == ROOT)
-        masterProcess(numProcs, chunk, MPI_GCD_NUMBERS);
+        masterProcess(numProcs, chunk, gcdNumbersType);
     else
-        workerProcess(MPI_GCD_NUMBERS);
+        workerProcess(gcdNumbersType);
    
     MPI_Finalize();
     return 0;

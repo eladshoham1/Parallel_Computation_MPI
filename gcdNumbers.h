@@ -15,7 +15,7 @@ GcdNumbers* readCouples(int *numOfCouples);
 void gcd(GcdNumbers *gcdNumbers);
 void calculateGcdArr(GcdNumbers *allGcdNumbers, int numOfCouples);
 void printAllGcdNumbers(GcdNumbers *allGcdNumbers, int numOfCouples);
-MPI_Datatype gcdNumbersMPIType();
+void createGcdNumbersType(MPI_Datatype* dataType);
 void* doMalloc(unsigned int nbytes);
 
 #endif
